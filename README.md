@@ -47,7 +47,7 @@ openclaw plugins install --link /绝对路径/hi-light-plugin
 "channels": {
   "hi-light": {
     "enabled": true,
-    "wsUrl": " https://open.guangfan.com/open-apis/device-agent/v1/websocket",
+    "wsUrl": "wss://open.guangfan.com/open-apis/device-agent/v1/websocket",
     "authToken": "你的API KEY"
   }
 }
