@@ -192,18 +192,19 @@ export async function startHiLightMonitor(params: HiLightMonitorParams): Promise
         return;
       }
       const raw = data.toString();
+      log?.debug?.(`hi-light: received raw msg len=${raw.length} raw=${raw}`);
 
       // Handle pong directly — reset missed counter
       try {
         const envelope = JSON.parse(raw) as { action?: unknown };
         if (envelope.action === "pong") {
           missedPongs = 0;
+          log?.debug?.("hi-light: pong received, connection healthy");
           return;
         }
       } catch {
         // Not JSON, let bot handle it
       }
-      log?.debug?.(`hi-light: received raw msg len=${raw.length} raw=${raw}`);
 
       handleHiLightMessage({
         ws,
