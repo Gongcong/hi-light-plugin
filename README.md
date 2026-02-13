@@ -49,14 +49,12 @@ openclaw plugins install --link /绝对路径/hi-light-plugin
 把下面这段加到 `channels` 里（没有就新建）：
 
 ```json
-{
-  "channels": {
+"channels": {
     "hi-light": {
       "enabled": true,
       "wsUrl": "ws://你的服务地址:8080/ws",
       "authToken": "Bearer 你的密钥"
     }
-  }
 }
 ```
 
