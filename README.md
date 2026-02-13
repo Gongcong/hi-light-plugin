@@ -2,25 +2,19 @@
 
 `hi-light` 是 OpenClaw 的 WebSocket 通道插件。它以 **WebSocket 客户端**身份连接你的业务服务端，将用户消息转发给 OpenClaw Agent，并把 Agent 最终回复回传给你的服务。
 
-## 1. 接入目标
+## 1. 通过 npm 使用（推荐）
 
-你需要完成三件事：
-
-1. 在 OpenClaw 侧安装并启用 `hi-light` 插件。
-2. 在你的服务端实现一个 WebSocket 接口，按约定协议与插件通信。
-3. 在服务端把用户消息封装成 `action=msg` 发给插件，接收 `reply/typing/error` 结果并落到你的业务流程中。
-
-## 2. 快速开始（5 分钟）
-
-### 2.1 安装插件
+### 1.1 安装
 
 ```bash
-cd extensions/hi-light
-npm install
-openclaw plugins install --link /absolute/path/to/extensions/hi-light
+npm i @openclaw/hi-light
 ```
 
-### 2.2 配置 OpenClaw
+### 1.2 在 OpenClaw 中启用插件
+
+```bash
+openclaw plugins install @openclaw/hi-light
+```
 
 编辑 `~/.openclaw/openclaw.json`，添加：
 
@@ -39,21 +33,20 @@ openclaw plugins install --link /absolute/path/to/extensions/hi-light
 }
 ```
 
-然后重启网关：
+重启网关：
 
 ```bash
 openclaw gateway restart
 ```
 
-### 2.3 本地联调
-
-仓库自带一个测试 WebSocket 服务：
+## 2. 本地开发安装（link）
 
 ```bash
-node test-ws-server.mjs
+cd extensions/hi-light
+npm install
+npm run build
+openclaw plugins install --link /absolute/path/to/extensions/hi-light
 ```
-
-启动后，插件会主动连接并发送 `action=connected`。
 
 ## 3. 通信协议
 
@@ -202,7 +195,21 @@ Authorization: <authToken>
 
 插件对 Agent 输出做了缓冲，最终只发送一条 `action=reply`（`done=true`）。
 
-## 5. 对接清单（上线前）
+## 5. 发布到 npm（维护者）
+
+```bash
+npm login
+npm run build
+npm publish --access public
+```
+
+发布前建议先检查打包内容：
+
+```bash
+npm pack --dry-run
+```
+
+## 6. 对接清单（上线前）
 
 - OpenClaw 已安装并启用 `hi-light`。
 - 你的 WS 服务能接受客户端连接，并支持 JSON 消息。
@@ -210,7 +217,7 @@ Authorization: <authToken>
 - 你的服务能发送 `msg`，并在收到 `ping` 时回复 `pong`。
 - 日志中可追踪 `context` 与 `userId` 全链路。
 
-## 6. 目录结构
+## 7. 目录结构
 
 ```text
 extensions/hi-light/
@@ -229,27 +236,3 @@ extensions/hi-light/
     ├── send.ts
     └── types.ts
 ```
-
-## 7. 常见问题
-
-### 收不到 reply
-
-先检查：
-
-- 发送给插件的 `action` 是否为 `msg`。
-- `payload.userId` 与 `payload.text` 是否非空。
-- 服务端是否提前断开连接。
-
-### 频繁断线重连
-
-先检查：
-
-- 服务端是否按时回复 `pong`。
-- 代理或网关是否会在 30~60 秒内回收空闲连接。
-
-### 鉴权失败
-
-先检查：
-
-- 服务端是否读取了 `Authorization` 请求头。
-- `authToken` 是否包含完整前缀（例如 `Bearer ...`）。

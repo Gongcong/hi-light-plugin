@@ -3,14 +3,30 @@
   "version": "1.0.0",
   "description": "HiLight WebSocket bridge channel plugin for OpenClaw",
   "type": "module",
-  "main": "index.ts",
-
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "openclaw.plugin.json",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "esbuild index.ts --bundle --format=esm --platform=node --target=node18 --packages=external --outfile=dist/index.js",
+    "prepublishOnly": "npm run build"
+  },
   "dependencies": {
     "ws": "^8.18.0",
     "zod": "^3.23.8"
   },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  },
   "openclaw": {
-    "extensions": ["index.ts"],
+    "extensions": [
+      "dist/index.js"
+    ],
     "channel": {
       "id": "hi-light",
       "label": "HiLight",
@@ -19,9 +35,6 @@
       "docsLabel": "hi-light",
       "blurb": "HiLight — WebSocket bridge channel, connects to external WS server.",
       "order": 80
-    },
-    "install": {
-      "localPath": "extensions/hi-light"
     }
   }
 }
