@@ -2,9 +2,9 @@
 
 ## 安装方法
 
-OpenClaw安装： https://github.com/openclaw/openclaw#install-recommended
+OpenClaw 安装：<https://github.com/openclaw/openclaw#install-recommended>
 
-插件安装：https://my.feishu.cn/wiki/CO5Vw6cG9iZUpckIvJoc279VnFc
+npm 包地址：<https://www.npmjs.com/package/@art_style666/hi-light>
 
 ## 安装前准备
 
@@ -20,7 +20,48 @@ node -v
 openclaw --version
 ```
 
-## 安装步骤（源码安装）
+## 安装步骤 A（推荐：npm 安装）
+
+### 1. 安装插件包
+
+```bash
+npm i @art_style666/hi-light
+```
+
+### 2. 在 OpenClaw 中安装插件
+
+```bash
+openclaw plugins install @art_style666/hi-light
+```
+
+### 3. 配置通道
+
+编辑文件：`~/.openclaw/openclaw.json`
+
+把下面这段加到 `channels` 里（没有就新建）：
+
+```json
+"channels": {
+  "hi-light": {
+    "enabled": true,
+    "wsUrl": "ws://你的服务地址:8080/ws",
+    "authToken": "你的API KEY"
+  }
+}
+```
+
+API KEY 获取方式：
+各大应用商店下载 HiLight App，点击设置 -> 帐号管理 -> 获取 API KEY。
+
+<img src="https://github.com/user-attachments/assets/6b55651c-ac08-432f-948b-3f82902839c4" alt="API KEY 获取示意图" width="420" />
+
+### 4. 重启网关让配置生效
+
+```bash
+openclaw gateway restart
+```
+
+## 安装步骤 B（源码安装，适合开发调试）
 
 ### 1. 准备源码
 
