@@ -67,7 +67,7 @@ API KEY 获取方式：
 各大应用商店，下载 HiLight APP，点击设置 -> 帐号管理  -> 获取 API KEY
 
 
-![img_v3_02us_037ad6ff-3486-48d4-a3b6-da98d757f3fg](https://github.com/user-attachments/assets/6b55651c-ac08-432f-948b-3f82902839c4)
+<img src="https://github.com/user-attachments/assets/6b55651c-ac08-432f-948b-3f82902839c4" alt="API KEY 获取示意图" width="420" />
 
 
 ### 5. 重启网关让配置生效
