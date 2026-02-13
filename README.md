@@ -25,7 +25,7 @@ openclaw --version
 ### 1. 准备源码
 
 ```bash
-git clone <你的仓库地址>
+git@github.com:Gongcong/hi-light-plugin.git
 cd hi-light-plugin
 ```
 
@@ -57,7 +57,7 @@ openclaw plugins install --link /绝对路径/hi-light-plugin
     "hi-light": {
       "enabled": true,
       "wsUrl": "ws://你的服务地址:8080/ws",
-      "authToken": "Bearer 你的密钥"
+      "authToken": "你的密钥"
     }
 }
 ```
