@@ -1,5 +1,9 @@
 # HiLight 安装说明
 
+## 安装方法
+
+https://my.feishu.cn/wiki/CO5Vw6cG9iZUpckIvJoc279VnFc
+
 ## 安装前准备
 
 先确认电脑里有这两个工具：
