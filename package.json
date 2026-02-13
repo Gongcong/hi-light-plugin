@@ -1,5 +1,5 @@
 {
-  "name": "@openclaw/hi-light",
+  "name": "@gongcong/hi-light",
   "version": "1.0.0",
   "description": "HiLight WebSocket bridge channel plugin for OpenClaw",
   "type": "module",

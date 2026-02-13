@@ -7,13 +7,13 @@
 ### 1.1 安装
 
 ```bash
-npm i @openclaw/hi-light
+npm i @gongcong/hi-light
 ```
 
 ### 1.2 在 OpenClaw 中启用插件
 
 ```bash
-openclaw plugins install @openclaw/hi-light
+openclaw plugins install @gongcong/hi-light
 ```
 
 编辑 `~/.openclaw/openclaw.json`，添加：
