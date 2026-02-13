@@ -1,4 +1,4 @@
-# HiLight 安装说明
+# HiLight Plugin 安装说明
 
 ## 安装方法
 
@@ -25,7 +25,7 @@ openclaw --version
 ### 1. 准备源码
 
 ```bash
-git@github.com:Gongcong/hi-light-plugin.git
+git clone git@github.com:Gongcong/hi-light-plugin.git
 cd hi-light-plugin
 ```
 
