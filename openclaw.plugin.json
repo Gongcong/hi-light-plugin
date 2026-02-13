@@ -1,0 +1,10 @@
+{
+  "id": "hi-light",
+  "channels": ["hi-light"],
+  "skills": [],
+  "configSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": true
+  }
+}
