@@ -2,6 +2,7 @@ import type { OpenClawConfig, ChannelLogSink, ReplyPayload } from "openclaw/plug
 import type WebSocket from "ws";
 import type { HiLightEnvelope, ReplyPayload as HiLightReplyPayload } from "./types.js";
 import { getHiLightRuntime } from "./runtime.js";
+import { sendHiLightEnvelope } from "./ws-send.js";
 
 export type CreateHiLightReplyDispatcherParams = {
   ws: WebSocket;
@@ -22,10 +23,19 @@ export function createHiLightReplyDispatcher(params: CreateHiLightReplyDispatche
   const { ws, config, userId, context, log } = params;
   const core = getHiLightRuntime();
 
+  const stringifyRaw = (value: unknown): string => {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "[unserializable]";
+    }
+  };
+
   // Buffer to accumulate full reply text
   const textChunks: string[] = [];
   let hasSentReply = false;
   let sawFinalPayload = false;
+  let streamSeq = 0;
 
   const flushBufferedReply = (): void => {
     if (hasSentReply) {
@@ -46,13 +56,10 @@ export function createHiLightReplyDispatcher(params: CreateHiLightReplyDispatche
       },
     };
 
-    try {
-      ws.send(JSON.stringify(replyEnvelope));
+    if (sendHiLightEnvelope({ ws, envelope: replyEnvelope, log, tag: "buffered-reply" })) {
       hasSentReply = true;
       textChunks.length = 0;
       log?.debug?.(`hi-light: sent buffered reply (len=${fullText.length})`);
-    } catch (err) {
-      log?.error(`hi-light: failed to send reply: ${err}`);
     }
   };
 
@@ -65,12 +72,19 @@ export function createHiLightReplyDispatcher(params: CreateHiLightReplyDispatche
 
     deliver: async (payload: ReplyPayload, info) => {
       const text = payload.text ?? "";
+      const kind = info?.kind ?? "unknown";
+      streamSeq += 1;
+
+      log?.debug?.(
+        `hi-light: openclaw stream chunk seq=${streamSeq} kind=${kind} textLen=${text.length} raw=${stringifyRaw({ payload, info })}`,
+      );
+
       if (text.length > 0) {
         textChunks.push(text);
       }
 
       // The SDK signals the final chunk via info.kind === "final"
-      const isFinal = info?.kind === "final";
+      const isFinal = kind === "final";
 
       if (isFinal) {
         sawFinalPayload = true;
@@ -84,16 +98,12 @@ export function createHiLightReplyDispatcher(params: CreateHiLightReplyDispatche
 
     onReplyStart: async () => {
       // Send typing indicator while agent is thinking
-      try {
-        const typingEnvelope: HiLightEnvelope = {
-          context,
-          action: "typing",
-          payload: { userId },
-        };
-        ws.send(JSON.stringify(typingEnvelope));
-      } catch {
-        // ignore
-      }
+      const typingEnvelope: HiLightEnvelope = {
+        context,
+        action: "typing",
+        payload: { userId },
+      };
+      sendHiLightEnvelope({ ws, envelope: typingEnvelope, log, tag: "typing" });
     },
   });
 

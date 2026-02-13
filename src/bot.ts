@@ -3,6 +3,7 @@ import type WebSocket from "ws";
 import type { HiLightEnvelope, MsgPayload } from "./types.js";
 import { createHiLightReplyDispatcher } from "./reply-dispatcher.js";
 import { getHiLightRuntime } from "./runtime.js";
+import { sendHiLightEnvelope } from "./ws-send.js";
 
 export type HandleHiLightMessageParams = {
   ws: WebSocket;
@@ -18,6 +19,13 @@ export type HandleHiLightMessageParams = {
 export async function handleHiLightMessage(params: HandleHiLightMessageParams): Promise<void> {
   const { ws, raw, config, accountId, log } = params;
   const core = getHiLightRuntime();
+  const stringifyRaw = (value: unknown): string => {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "[unserializable]";
+    }
+  };
 
   // 1. Parse the envelope
   let envelope: HiLightEnvelope;
@@ -103,6 +111,7 @@ export async function handleHiLightMessage(params: HandleHiLightMessageParams): 
 
   // 4. Dispatch to OpenClaw core for agent processing
   try {
+    log?.debug?.(`hi-light: openclaw inbound ctx raw=${stringifyRaw(ctxPayload)}`);
     await core.channel.reply.dispatchReplyFromConfig({
       ctx: ctxPayload,
       cfg: config,
@@ -111,20 +120,26 @@ export async function handleHiLightMessage(params: HandleHiLightMessageParams): 
     });
   } catch (err) {
     log?.error(`hi-light: dispatch error: ${err}`);
-    try {
-      const errorEnvelope: HiLightEnvelope = {
-        context,
-        action: "error",
-        payload: {
-          userId,
-          code: "DISPATCH_FAILED",
-          message: err instanceof Error ? err.message : String(err),
-        },
-      };
-      ws.send(JSON.stringify(errorEnvelope));
-    } catch {
-      // ignore send failures
-    }
+    const dispatchErrorRaw =
+      err instanceof Error
+        ? {
+            name: err.name,
+            message: err.message,
+            stack: err.stack,
+          }
+        : err;
+    log?.error(`hi-light: openclaw dispatch error raw=${JSON.stringify(dispatchErrorRaw)}`);
+
+    const errorEnvelope: HiLightEnvelope = {
+      context,
+      action: "error",
+      payload: {
+        userId,
+        code: "DISPATCH_FAILED",
+        message: err instanceof Error ? err.message : String(err),
+      },
+    };
+    sendHiLightEnvelope({ ws, envelope: errorEnvelope, log, tag: "dispatch-error" });
   } finally {
     markDispatchIdle?.();
   }

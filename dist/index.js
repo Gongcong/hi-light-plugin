@@ -78,13 +78,69 @@ var init_runtime = __esm({
   }
 });
 
+// src/ws-send.ts
+import WebSocket from "ws";
+function sendHiLightEnvelope(params) {
+  const { ws, envelope, log, tag } = params;
+  const label = tag ? `${tag}` : envelope.action;
+  const raw = JSON.stringify(envelope);
+  const isHeartbeatAction = envelope.action === "ping" || envelope.action === "pong";
+  if (!isHeartbeatAction) {
+    log?.debug?.(`hi-light: ws send start action=${envelope.action} tag=${label} payload=${raw}`);
+  }
+  if (typeof ws.readyState === "number" && ws.readyState !== WebSocket.OPEN) {
+    if (!isHeartbeatAction) {
+      log?.warn(
+        `hi-light: ws send skipped (socket not open) action=${envelope.action} tag=${label} readyState=${ws.readyState} payload=${raw}`
+      );
+    }
+    return false;
+  }
+  try {
+    ws.send(raw, (err) => {
+      if (err) {
+        if (!isHeartbeatAction) {
+          log?.error(
+            `hi-light: ws send failed action=${envelope.action} tag=${label} error=${err.message} payload=${raw}`
+          );
+        }
+        return;
+      }
+      if (!isHeartbeatAction) {
+        log?.debug?.(`hi-light: ws send success action=${envelope.action} tag=${label}`);
+      }
+    });
+    return true;
+  } catch (err) {
+    const errorText = err instanceof Error ? err.message : String(err);
+    if (!isHeartbeatAction) {
+      log?.error(
+        `hi-light: ws send failed action=${envelope.action} tag=${label} error=${errorText} payload=${raw}`
+      );
+    }
+    return false;
+  }
+}
+var init_ws_send = __esm({
+  "src/ws-send.ts"() {
+  }
+});
+
 // src/reply-dispatcher.ts
 function createHiLightReplyDispatcher(params) {
   const { ws, config, userId, context, log } = params;
   const core = getHiLightRuntime();
+  const stringifyRaw = (value) => {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "[unserializable]";
+    }
+  };
   const textChunks = [];
   let hasSentReply = false;
   let sawFinalPayload = false;
+  let streamSeq = 0;
   const flushBufferedReply = () => {
     if (hasSentReply) {
       return;
@@ -102,13 +158,10 @@ function createHiLightReplyDispatcher(params) {
         done: true
       }
     };
-    try {
-      ws.send(JSON.stringify(replyEnvelope));
+    if (sendHiLightEnvelope({ ws, envelope: replyEnvelope, log, tag: "buffered-reply" })) {
       hasSentReply = true;
       textChunks.length = 0;
       log?.debug?.(`hi-light: sent buffered reply (len=${fullText.length})`);
-    } catch (err) {
-      log?.error(`hi-light: failed to send reply: ${err}`);
     }
   };
   const {
@@ -119,10 +172,15 @@ function createHiLightReplyDispatcher(params) {
     humanDelay: core.channel.reply.resolveHumanDelayConfig(config),
     deliver: async (payload, info) => {
       const text = payload.text ?? "";
+      const kind = info?.kind ?? "unknown";
+      streamSeq += 1;
+      log?.debug?.(
+        `hi-light: openclaw stream chunk seq=${streamSeq} kind=${kind} textLen=${text.length} raw=${stringifyRaw({ payload, info })}`
+      );
       if (text.length > 0) {
         textChunks.push(text);
       }
-      const isFinal = info?.kind === "final";
+      const isFinal = kind === "final";
       if (isFinal) {
         sawFinalPayload = true;
         flushBufferedReply();
@@ -133,15 +191,12 @@ function createHiLightReplyDispatcher(params) {
       }
     },
     onReplyStart: async () => {
-      try {
-        const typingEnvelope = {
-          context,
-          action: "typing",
-          payload: { userId }
-        };
-        ws.send(JSON.stringify(typingEnvelope));
-      } catch {
-      }
+      const typingEnvelope = {
+        context,
+        action: "typing",
+        payload: { userId }
+      };
+      sendHiLightEnvelope({ ws, envelope: typingEnvelope, log, tag: "typing" });
     }
   });
   const markDispatchIdle = () => {
@@ -153,6 +208,7 @@ function createHiLightReplyDispatcher(params) {
 var init_reply_dispatcher = __esm({
   "src/reply-dispatcher.ts"() {
     init_runtime();
+    init_ws_send();
   }
 });
 
@@ -160,6 +216,13 @@ var init_reply_dispatcher = __esm({
 async function handleHiLightMessage(params) {
   const { ws, raw, config, accountId, log } = params;
   const core = getHiLightRuntime();
+  const stringifyRaw = (value) => {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "[unserializable]";
+    }
+  };
   let envelope;
   try {
     envelope = JSON.parse(raw);
@@ -221,6 +284,7 @@ async function handleHiLightMessage(params) {
     log
   });
   try {
+    log?.debug?.(`hi-light: openclaw inbound ctx raw=${stringifyRaw(ctxPayload)}`);
     await core.channel.reply.dispatchReplyFromConfig({
       ctx: ctxPayload,
       cfg: config,
@@ -229,19 +293,22 @@ async function handleHiLightMessage(params) {
     });
   } catch (err) {
     log?.error(`hi-light: dispatch error: ${err}`);
-    try {
-      const errorEnvelope = {
-        context,
-        action: "error",
-        payload: {
-          userId,
-          code: "DISPATCH_FAILED",
-          message: err instanceof Error ? err.message : String(err)
-        }
-      };
-      ws.send(JSON.stringify(errorEnvelope));
-    } catch {
-    }
+    const dispatchErrorRaw = err instanceof Error ? {
+      name: err.name,
+      message: err.message,
+      stack: err.stack
+    } : err;
+    log?.error(`hi-light: openclaw dispatch error raw=${JSON.stringify(dispatchErrorRaw)}`);
+    const errorEnvelope = {
+      context,
+      action: "error",
+      payload: {
+        userId,
+        code: "DISPATCH_FAILED",
+        message: err instanceof Error ? err.message : String(err)
+      }
+    };
+    sendHiLightEnvelope({ ws, envelope: errorEnvelope, log, tag: "dispatch-error" });
   } finally {
     markDispatchIdle?.();
   }
@@ -250,6 +317,7 @@ var init_bot = __esm({
   "src/bot.ts"() {
     init_reply_dispatcher();
     init_runtime();
+    init_ws_send();
   }
 });
 
@@ -259,7 +327,7 @@ __export(monitor_exports, {
   startHiLightMonitor: () => startHiLightMonitor
 });
 import { randomUUID } from "node:crypto";
-import WebSocket from "ws";
+import WebSocket2 from "ws";
 function resolveConnectWsUrl(wsUrl) {
   const uuid = randomUUID();
   if (wsUrl.includes(WS_UUID_PLACEHOLDER)) {
@@ -317,11 +385,6 @@ async function startHiLightMonitor(params) {
     stopResolved = true;
     resolveStopped();
   }
-  function send(ws, envelope) {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(envelope));
-    }
-  }
   function stopAndDispose(reason) {
     if (stopped) {
       return;
@@ -358,7 +421,7 @@ async function startHiLightMonitor(params) {
     }
     const connectWsUrl = resolveConnectWsUrl(wsUrlTemplate);
     log?.info(`hi-light: connecting to ${connectWsUrl} (attempt ${reconnectAttempts + 1})`);
-    const ws = new WebSocket(connectWsUrl, { headers });
+    const ws = new WebSocket2(connectWsUrl, { headers });
     activeWs = ws;
     ws.on("open", () => {
       if (stopped || abortSignal.aborted) {
@@ -370,10 +433,15 @@ async function startHiLightMonitor(params) {
       }
       reconnectAttempts = 0;
       log?.info(`hi-light: connected to ${connectWsUrl}`);
-      send(ws, {
-        context: "",
-        action: "connected",
-        payload: { pluginId: "hi-light", accountId }
+      sendHiLightEnvelope({
+        ws,
+        log,
+        tag: "connected",
+        envelope: {
+          context: "",
+          action: "connected",
+          payload: { pluginId: "hi-light", accountId }
+        }
       });
       clearHeartbeat();
       missedPongs = 0;
@@ -387,12 +455,16 @@ async function startHiLightMonitor(params) {
           return;
         }
         missedPongs++;
-        send(ws, {
-          context: "",
-          action: "ping",
-          payload: { ts: Date.now() }
+        sendHiLightEnvelope({
+          ws,
+          log,
+          tag: `heartbeat-${missedPongs}`,
+          envelope: {
+            context: "",
+            action: "ping",
+            payload: { ts: Date.now() }
+          }
         });
-        log?.debug?.(`hi-light: ping sent (missedPongs=${missedPongs})`);
       }, HEARTBEAT_INTERVAL_MS);
     });
     ws.on("message", (data) => {
@@ -400,16 +472,15 @@ async function startHiLightMonitor(params) {
         return;
       }
       const raw = data.toString();
-      log?.debug?.(`hi-light: received raw msg len=${raw.length} preview=${raw.slice(0, 100)}`);
       try {
         const envelope = JSON.parse(raw);
         if (envelope.action === "pong") {
           missedPongs = 0;
-          log?.debug?.("hi-light: pong received, connection healthy");
           return;
         }
       } catch {
       }
+      log?.debug?.(`hi-light: received raw msg len=${raw.length} raw=${raw}`);
       handleHiLightMessage({
         ws,
         raw,
@@ -465,6 +536,7 @@ var init_monitor = __esm({
   "src/monitor.ts"() {
     init_accounts();
     init_bot();
+    init_ws_send();
     WS_UUID_PLACEHOLDER = "{UUIDD}";
   }
 });

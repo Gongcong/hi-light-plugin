@@ -1,9 +1,10 @@
 import type { OpenClawConfig, ChannelLogSink } from "openclaw/plugin-sdk";
 import { randomUUID } from "node:crypto";
 import WebSocket from "ws";
-import type { HiLightEnvelope, PingPayload, ConnectedPayload } from "./types.js";
+import type { PingPayload, ConnectedPayload } from "./types.js";
 import { resolveHiLightAccount } from "./accounts.js";
 import { handleHiLightMessage } from "./bot.js";
+import { sendHiLightEnvelope } from "./ws-send.js";
 
 const WS_UUID_PLACEHOLDER = "{UUIDD}";
 
@@ -87,13 +88,6 @@ export async function startHiLightMonitor(params: HiLightMonitorParams): Promise
     resolveStopped();
   }
 
-  /** Send a typed envelope via WS */
-  function send<T>(ws: WebSocket, envelope: HiLightEnvelope<T>): void {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(envelope));
-    }
-  }
-
   function stopAndDispose(reason: string): void {
     if (stopped) {
       return;
@@ -154,10 +148,15 @@ export async function startHiLightMonitor(params: HiLightMonitorParams): Promise
       log?.info(`hi-light: connected to ${connectWsUrl}`);
 
       // Send connected status
-      send<ConnectedPayload>(ws, {
-        context: "",
-        action: "connected",
-        payload: { pluginId: "hi-light", accountId },
+      sendHiLightEnvelope<ConnectedPayload>({
+        ws,
+        log,
+        tag: "connected",
+        envelope: {
+          context: "",
+          action: "connected",
+          payload: { pluginId: "hi-light", accountId },
+        },
       });
 
       // Start heartbeat — send JSON ping every 30s, detect pong timeout
@@ -175,12 +174,16 @@ export async function startHiLightMonitor(params: HiLightMonitorParams): Promise
         }
 
         missedPongs++;
-        send<PingPayload>(ws, {
-          context: "",
-          action: "ping",
-          payload: { ts: Date.now() },
+        sendHiLightEnvelope<PingPayload>({
+          ws,
+          log,
+          tag: `heartbeat-${missedPongs}`,
+          envelope: {
+            context: "",
+            action: "ping",
+            payload: { ts: Date.now() },
+          },
         });
-        log?.debug?.(`hi-light: ping sent (missedPongs=${missedPongs})`);
       }, HEARTBEAT_INTERVAL_MS);
     });
 
@@ -189,19 +192,18 @@ export async function startHiLightMonitor(params: HiLightMonitorParams): Promise
         return;
       }
       const raw = data.toString();
-      log?.debug?.(`hi-light: received raw msg len=${raw.length} preview=${raw.slice(0, 100)}`);
 
       // Handle pong directly — reset missed counter
       try {
-        const envelope = JSON.parse(raw);
+        const envelope = JSON.parse(raw) as { action?: unknown };
         if (envelope.action === "pong") {
           missedPongs = 0;
-          log?.debug?.("hi-light: pong received, connection healthy");
           return;
         }
       } catch {
         // Not JSON, let bot handle it
       }
+      log?.debug?.(`hi-light: received raw msg len=${raw.length} raw=${raw}`);
 
       handleHiLightMessage({
         ws,
