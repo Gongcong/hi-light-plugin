@@ -2,7 +2,9 @@
 
 ## 安装方法
 
-https://my.feishu.cn/wiki/CO5Vw6cG9iZUpckIvJoc279VnFc
+OpenClaw安装： https://github.com/openclaw/openclaw#install-recommended
+
+插件安装：https://my.feishu.cn/wiki/CO5Vw6cG9iZUpckIvJoc279VnFc
 
 ## 安装前准备
 
