@@ -1,6 +1,6 @@
 {
   "name": "@art_style666/hi-light",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "HiLight WebSocket bridge channel plugin for OpenClaw",
   "type": "module",
   "main": "dist/index.js",
