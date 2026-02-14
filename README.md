@@ -68,3 +68,40 @@ openclaw gateway restart
 
 重启后如果没有报错，基本就安装成功了。
 如果想更稳妥，可以看网关日志里是否出现 `hi-light` 连接成功的信息。
+
+## GitHub CI/CD（打 Tag 自动发布 npm）
+
+仓库已包含两个 GitHub Actions：
+
+- `CI`：`push main` / `pull_request` 时自动执行 `npm ci`、`build`、`test`、`npm pack --dry-run`。
+- `Release to npm`：当推送标签 `v*.*.*` 时自动发布 npm。
+
+### 需要先配置的 Secret
+
+在 GitHub 仓库设置里添加：
+
+- `NPM_TOKEN`：npm 的 Granular Access Token（需要有发布该包权限，且可用于 2FA 发布场景）。
+
+### 发布流程
+
+1. 更新版本号（本地）：
+
+```bash
+npm version patch
+```
+
+2. 推送代码和标签：
+
+```bash
+git push origin main --follow-tags
+```
+
+或手动打标签：
+
+```bash
+git tag v1.0.1
+git push origin v1.0.1
+```
+
+当标签与 `package.json` 的版本一致时，`Release to npm` 会自动发布到：
+<https://www.npmjs.com/package/@art_style666/hi-light>

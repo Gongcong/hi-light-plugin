@@ -14,6 +14,7 @@
   ],
   "scripts": {
     "build": "esbuild index.ts --bundle --format=esm --platform=node --target=node18 --packages=external --outfile=dist/index.js",
+    "test": "vitest run",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
@@ -21,7 +22,8 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.25.0",
+    "vitest": "^4.0.18"
   },
   "openclaw": {
     "extensions": [
