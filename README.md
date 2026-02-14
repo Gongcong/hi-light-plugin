@@ -8,7 +8,7 @@ npm 包地址：<https://www.npmjs.com/package/@art_style666/hi-light>
 
 先确认电脑里有这两个工具：
 
-- `Node.js`（建议 18 或更高）
+- `Node.js`（建议 22 或更高）
 - `OpenClaw`
 
 在终端里输入下面两行，能看到版本号就说明已经装好：
