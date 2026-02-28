@@ -8,6 +8,25 @@ import { sendHiLightEnvelope } from "./ws-send.js";
 
 const WS_UUID_PLACEHOLDER = "{UUIDD}";
 
+/** Close codes that mean auth failure: do not reconnect. */
+const AUTH_FAILURE_CLOSE_CODES = new Set([401, 4401, 4001]);
+
+function isAuthFailure(code: number, reason: unknown): boolean {
+  if (AUTH_FAILURE_CLOSE_CODES.has(code)) {
+    return true;
+  }
+
+  let reasonStr = "";
+  if (typeof reason === "string") {
+    reasonStr = reason;
+  } else if (reason && typeof (reason as { toString?: () => string }).toString === "function") {
+    reasonStr = (reason as { toString: () => string }).toString() ?? "";
+  }
+
+  const lower = reasonStr.toLowerCase();
+  return lower.includes("401") || lower.includes("unauthorized");
+}
+
 function resolveConnectWsUrl(wsUrl: string): string {
   const uuid = randomUUID();
 
@@ -60,6 +79,8 @@ export async function startHiLightMonitor(params: HiLightMonitorParams): Promise
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let missedPongs = 0;
   const MAX_MISSED_PONGS = 2;
+  /** Set when we've received at least one pong; only then do we reset reconnectAttempts on next open. Avoids 401 spinning at 3s. */
+  let connectionValidated = false;
   let stopResolved = false;
   let resolveStopped!: () => void;
   const stoppedPromise = new Promise<void>((resolve) => {
@@ -132,6 +153,9 @@ export async function startHiLightMonitor(params: HiLightMonitorParams): Promise
 
     log?.info(`hi-light: connecting to ${connectWsUrl} (attempt ${reconnectAttempts + 1})`);
 
+    /** Set in error handler when upgrade fails with 401; close handler will then stop reconnecting. */
+    let authFailureFromError = false;
+
     const ws = new WebSocket(connectWsUrl, { headers });
     activeWs = ws;
 
@@ -144,7 +168,8 @@ export async function startHiLightMonitor(params: HiLightMonitorParams): Promise
         }
         return;
       }
-      reconnectAttempts = 0;
+      // Only reset backoff after we receive a pong (connection validated). Otherwise e.g. 401 would reset every time and we'd retry every 3s.
+      connectionValidated = false;
       log?.info(`hi-light: connected to ${connectWsUrl}`);
 
       // Send connected status
@@ -199,6 +224,8 @@ export async function startHiLightMonitor(params: HiLightMonitorParams): Promise
         const envelope = JSON.parse(raw) as { action?: unknown };
         if (envelope.action === "pong") {
           missedPongs = 0;
+          connectionValidated = true;
+          reconnectAttempts = 0;
           log?.debug?.("hi-light: pong received, connection healthy");
           return;
         }
@@ -228,11 +255,23 @@ export async function startHiLightMonitor(params: HiLightMonitorParams): Promise
         return;
       }
       const reasonStr = reason?.toString() || "unknown";
+      const authFailed = authFailureFromError || isAuthFailure(code, reason);
+      if (authFailed) {
+        log?.error(
+          `hi-light: auth failed (code=${code}, reason=${reasonStr}), stop reconnecting. Check token in openclaw.json.`
+        );
+        stopAndDispose("auth failed (401), stop reconnecting");
+        return;
+      }
       log?.warn(`hi-light: closed (code=${code}, reason=${reasonStr}), reconnecting...`);
       scheduleReconnect();
     });
 
     ws.on("error", (err) => {
+      const msg = err.message || "";
+      if (/401|unauthorized/i.test(msg)) {
+        authFailureFromError = true;
+      }
       log?.error(`hi-light: connection error: ${err.message}`);
     });
   }

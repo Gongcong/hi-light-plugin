@@ -317,6 +317,19 @@ __export(monitor_exports, {
 });
 import { randomUUID } from "node:crypto";
 import WebSocket2 from "ws";
+function isAuthFailure(code, reason) {
+  if (AUTH_FAILURE_CLOSE_CODES.has(code)) {
+    return true;
+  }
+  let reasonStr = "";
+  if (typeof reason === "string") {
+    reasonStr = reason;
+  } else if (reason && typeof reason.toString === "function") {
+    reasonStr = reason.toString() ?? "";
+  }
+  const lower = reasonStr.toLowerCase();
+  return lower.includes("401") || lower.includes("unauthorized");
+}
 function resolveConnectWsUrl(wsUrl) {
   const uuid = randomUUID();
   if (wsUrl.includes(WS_UUID_PLACEHOLDER)) {
@@ -350,6 +363,7 @@ async function startHiLightMonitor(params) {
   let reconnectTimer = null;
   let missedPongs = 0;
   const MAX_MISSED_PONGS = 2;
+  let connectionValidated = false;
   let stopResolved = false;
   let resolveStopped;
   const stoppedPromise = new Promise((resolve) => {
@@ -410,6 +424,7 @@ async function startHiLightMonitor(params) {
     }
     const connectWsUrl = resolveConnectWsUrl(wsUrlTemplate);
     log?.info(`hi-light: connecting to ${connectWsUrl} (attempt ${reconnectAttempts + 1})`);
+    let authFailureFromError = false;
     const ws = new WebSocket2(connectWsUrl, { headers });
     activeWs = ws;
     ws.on("open", () => {
@@ -420,7 +435,7 @@ async function startHiLightMonitor(params) {
         }
         return;
       }
-      reconnectAttempts = 0;
+      connectionValidated = false;
       log?.info(`hi-light: connected to ${connectWsUrl}`);
       sendHiLightEnvelope({
         ws,
@@ -466,6 +481,8 @@ async function startHiLightMonitor(params) {
         const envelope = JSON.parse(raw);
         if (envelope.action === "pong") {
           missedPongs = 0;
+          connectionValidated = true;
+          reconnectAttempts = 0;
           log?.debug?.("hi-light: pong received, connection healthy");
           return;
         }
@@ -492,10 +509,22 @@ async function startHiLightMonitor(params) {
         return;
       }
       const reasonStr = reason?.toString() || "unknown";
+      const authFailed = authFailureFromError || isAuthFailure(code, reason);
+      if (authFailed) {
+        log?.error(
+          `hi-light: auth failed (code=${code}, reason=${reasonStr}), stop reconnecting. Check token in openclaw.json.`
+        );
+        stopAndDispose("auth failed (401), stop reconnecting");
+        return;
+      }
       log?.warn(`hi-light: closed (code=${code}, reason=${reasonStr}), reconnecting...`);
       scheduleReconnect();
     });
     ws.on("error", (err) => {
+      const msg = err.message || "";
+      if (/401|unauthorized/i.test(msg)) {
+        authFailureFromError = true;
+      }
       log?.error(`hi-light: connection error: ${err.message}`);
     });
   }
@@ -521,13 +550,14 @@ async function startHiLightMonitor(params) {
     clearReconnect();
   }
 }
-var WS_UUID_PLACEHOLDER;
+var WS_UUID_PLACEHOLDER, AUTH_FAILURE_CLOSE_CODES;
 var init_monitor = __esm({
   "src/monitor.ts"() {
     init_accounts();
     init_bot();
     init_ws_send();
     WS_UUID_PLACEHOLDER = "{UUIDD}";
+    AUTH_FAILURE_CLOSE_CODES = /* @__PURE__ */ new Set([401, 4401, 4001]);
   }
 });
 
