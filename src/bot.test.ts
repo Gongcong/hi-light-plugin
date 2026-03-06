@@ -1,16 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const createHiLightReplyDispatcherMock = vi.hoisted(() => vi.fn());
 const getHiLightRuntimeMock = vi.hoisted(() => vi.fn());
 const finalizeInboundContextMock = vi.hoisted(() => vi.fn((ctx) => ctx));
-const dispatchReplyFromConfigMock = vi.hoisted(() => vi.fn(async () => undefined));
-const markDispatchIdleMock = vi.hoisted(() => vi.fn());
+const dispatchReplyWithBufferedBlockDispatcherMock = vi.hoisted(() => vi.fn(async () => undefined));
 const resolveStorePathMock = vi.hoisted(() => vi.fn(() => "/tmp/sessions.json"));
 const recordInboundSessionMock = vi.hoisted(() => vi.fn(async () => undefined));
-
-vi.mock("./reply-dispatcher.js", () => ({
-  createHiLightReplyDispatcher: createHiLightReplyDispatcherMock,
-}));
 
 vi.mock("./runtime.js", () => ({
   getHiLightRuntime: getHiLightRuntimeMock,
@@ -30,12 +24,6 @@ describe("handleHiLightMessage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    createHiLightReplyDispatcherMock.mockReturnValue({
-      dispatcher: {},
-      replyOptions: {},
-      markDispatchIdle: markDispatchIdleMock,
-    });
-
     getHiLightRuntimeMock.mockReturnValue({
       channel: {
         routing: {
@@ -51,7 +39,8 @@ describe("handleHiLightMessage", () => {
         },
         reply: {
           finalizeInboundContext: finalizeInboundContextMock,
-          dispatchReplyFromConfig: dispatchReplyFromConfigMock,
+          dispatchReplyWithBufferedBlockDispatcher: dispatchReplyWithBufferedBlockDispatcherMock,
+          resolveHumanDelayConfig: vi.fn(() => undefined),
         },
       },
     });
@@ -93,8 +82,7 @@ describe("handleHiLightMessage", () => {
       }),
     );
 
-    expect(dispatchReplyFromConfigMock).toHaveBeenCalledTimes(1);
-    expect(markDispatchIdleMock).toHaveBeenCalledTimes(1);
+    expect(dispatchReplyWithBufferedBlockDispatcherMock).toHaveBeenCalledTimes(1);
   });
 
   it("falls back to default context and sender when optional fields are missing", async () => {
@@ -138,7 +126,7 @@ describe("handleHiLightMessage", () => {
     });
 
     expect(finalizeInboundContextMock).not.toHaveBeenCalled();
-    expect(dispatchReplyFromConfigMock).not.toHaveBeenCalled();
+    expect(dispatchReplyWithBufferedBlockDispatcherMock).not.toHaveBeenCalled();
     expect(recordInboundSessionMock).not.toHaveBeenCalled();
   });
 });

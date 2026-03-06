@@ -1,7 +1,6 @@
 import type { OpenClawConfig, ChannelLogSink } from "openclaw/plugin-sdk";
 import type WebSocket from "ws";
-import type { HiLightEnvelope, MsgPayload } from "./types.js";
-import { createHiLightReplyDispatcher } from "./reply-dispatcher.js";
+import type { HiLightEnvelope, MsgPayload, ReplyPayload as HiLightReplyPayload } from "./types.js";
 import { getHiLightRuntime } from "./runtime.js";
 import { sendHiLightEnvelope } from "./ws-send.js";
 
@@ -100,23 +99,54 @@ export async function handleHiLightMessage(params: HandleHiLightMessageParams): 
     },
   });
 
-  // 3. Create reply dispatcher (buffered — waits for full reply)
-  const { dispatcher, replyOptions, markDispatchIdle } = createHiLightReplyDispatcher({
-    ws,
-    config,
-    userId,
-    context,
-    log,
-  });
-
-  // 4. Dispatch to OpenClaw core for agent processing
+  // 3. Dispatch using the one-shot buffered block dispatcher
   try {
-    log?.debug?.(`hi-light: openclaw inbound ctx raw=${stringifyRaw(ctxPayload)}`);
-    await core.channel.reply.dispatchReplyFromConfig({
+    log?.info(`hi-light: dispatching to agent, ctx raw=${stringifyRaw(ctxPayload)}`);
+    await core.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
       ctx: ctxPayload,
       cfg: config,
-      dispatcher,
-      replyOptions,
+      dispatcherOptions: {
+        humanDelay: core.channel.reply.resolveHumanDelayConfig(config),
+
+        deliver: async (replyPayload, info) => {
+          const replyText = replyPayload.text ?? "";
+          const kind = info?.kind ?? "unknown";
+
+          log?.info(
+            `hi-light: agent deliver kind=${kind} textLen=${replyText.length} raw=${stringifyRaw({ payload: replyPayload, info })}`,
+          );
+
+          // Send typing notification on first chunk
+          if (kind === "block" || kind === "tool") {
+            // Typing is sent via onReplyStart below
+            return;
+          }
+
+          // On final: send the complete reply to WS
+          if (kind === "final" && replyText.length > 0) {
+            const replyEnvelope: HiLightEnvelope<HiLightReplyPayload> = {
+              context,
+              action: "reply",
+              payload: {
+                userId,
+                text: replyText,
+                done: true,
+              },
+            };
+            sendHiLightEnvelope({ ws, envelope: replyEnvelope, log, tag: "buffered-reply" });
+            log?.info(`hi-light: reply sent to user=${userId} context=${context} (len=${replyText.length})`);
+          }
+        },
+
+        onReplyStart: async () => {
+          const typingEnvelope: HiLightEnvelope = {
+            context,
+            action: "typing",
+            payload: { userId },
+          };
+          sendHiLightEnvelope({ ws, envelope: typingEnvelope, log, tag: "typing" });
+        },
+      },
     });
   } catch (err) {
     log?.error(`hi-light: dispatch error: ${err}`);
@@ -140,7 +170,5 @@ export async function handleHiLightMessage(params: HandleHiLightMessageParams): 
       },
     };
     sendHiLightEnvelope({ ws, envelope: errorEnvelope, log, tag: "dispatch-error" });
-  } finally {
-    markDispatchIdle?.();
   }
 }

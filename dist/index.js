@@ -84,7 +84,7 @@ function sendHiLightEnvelope(params) {
   const { ws, envelope, log, tag } = params;
   const label = tag ? `${tag}` : envelope.action;
   const raw = JSON.stringify(envelope);
-  log?.debug?.(`hi-light: ws send start action=${envelope.action} tag=${label} payload=${raw}`);
+  log?.info(`hi-light: ws send action=${envelope.action} tag=${label} payload=${raw}`);
   if (typeof ws.readyState === "number" && ws.readyState !== WebSocket.OPEN) {
     log?.warn(
       `hi-light: ws send skipped (socket not open) action=${envelope.action} tag=${label} readyState=${ws.readyState} payload=${raw}`
@@ -99,7 +99,7 @@ function sendHiLightEnvelope(params) {
         );
         return;
       }
-      log?.debug?.(`hi-light: ws send success action=${envelope.action} tag=${label}`);
+      log?.info(`hi-light: ws send ok action=${envelope.action} tag=${label}`);
     });
     return true;
   } catch (err) {
@@ -112,92 +112,6 @@ function sendHiLightEnvelope(params) {
 }
 var init_ws_send = __esm({
   "src/ws-send.ts"() {
-  }
-});
-
-// src/reply-dispatcher.ts
-function createHiLightReplyDispatcher(params) {
-  const { ws, config, userId, context, log } = params;
-  const core = getHiLightRuntime();
-  const stringifyRaw = (value) => {
-    try {
-      return JSON.stringify(value);
-    } catch {
-      return "[unserializable]";
-    }
-  };
-  const textChunks = [];
-  let hasSentReply = false;
-  let sawFinalPayload = false;
-  let streamSeq = 0;
-  const flushBufferedReply = () => {
-    if (hasSentReply) {
-      return;
-    }
-    if (!sawFinalPayload && textChunks.length === 0) {
-      return;
-    }
-    const fullText = textChunks.join("");
-    const replyEnvelope = {
-      context,
-      action: "reply",
-      payload: {
-        userId,
-        text: fullText,
-        done: true
-      }
-    };
-    if (sendHiLightEnvelope({ ws, envelope: replyEnvelope, log, tag: "buffered-reply" })) {
-      hasSentReply = true;
-      textChunks.length = 0;
-      log?.debug?.(`hi-light: sent buffered reply (len=${fullText.length})`);
-    }
-  };
-  const {
-    dispatcher,
-    replyOptions,
-    markDispatchIdle: sdkMarkDispatchIdle
-  } = core.channel.reply.createReplyDispatcherWithTyping({
-    humanDelay: core.channel.reply.resolveHumanDelayConfig(config),
-    deliver: async (payload, info) => {
-      const text = payload.text ?? "";
-      const kind = info?.kind ?? "unknown";
-      streamSeq += 1;
-      log?.debug?.(
-        `hi-light: openclaw stream chunk seq=${streamSeq} kind=${kind} textLen=${text.length} raw=${stringifyRaw({ payload, info })}`
-      );
-      if (text.length > 0) {
-        textChunks.push(text);
-      }
-      const isFinal = kind === "final";
-      if (isFinal) {
-        sawFinalPayload = true;
-        flushBufferedReply();
-      } else {
-        log?.debug?.(
-          `hi-light: buffering chunk (kind=${info?.kind ?? "unknown"}, len=${text.length})`
-        );
-      }
-    },
-    onReplyStart: async () => {
-      const typingEnvelope = {
-        context,
-        action: "typing",
-        payload: { userId }
-      };
-      sendHiLightEnvelope({ ws, envelope: typingEnvelope, log, tag: "typing" });
-    }
-  });
-  const markDispatchIdle = () => {
-    flushBufferedReply();
-    sdkMarkDispatchIdle();
-  };
-  return { dispatcher, replyOptions, markDispatchIdle };
-}
-var init_reply_dispatcher = __esm({
-  "src/reply-dispatcher.ts"() {
-    init_runtime();
-    init_ws_send();
   }
 });
 
@@ -265,20 +179,45 @@ async function handleHiLightMessage(params) {
       log?.error?.(`hi-light: failed to record inbound session: ${String(err)}`);
     }
   });
-  const { dispatcher, replyOptions, markDispatchIdle } = createHiLightReplyDispatcher({
-    ws,
-    config,
-    userId,
-    context,
-    log
-  });
   try {
-    log?.debug?.(`hi-light: openclaw inbound ctx raw=${stringifyRaw(ctxPayload)}`);
-    await core.channel.reply.dispatchReplyFromConfig({
+    log?.info(`hi-light: dispatching to agent, ctx raw=${stringifyRaw(ctxPayload)}`);
+    await core.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
       ctx: ctxPayload,
       cfg: config,
-      dispatcher,
-      replyOptions
+      dispatcherOptions: {
+        humanDelay: core.channel.reply.resolveHumanDelayConfig(config),
+        deliver: async (replyPayload, info) => {
+          const replyText = replyPayload.text ?? "";
+          const kind = info?.kind ?? "unknown";
+          log?.info(
+            `hi-light: agent deliver kind=${kind} textLen=${replyText.length} raw=${stringifyRaw({ payload: replyPayload, info })}`
+          );
+          if (kind === "block" || kind === "tool") {
+            return;
+          }
+          if (kind === "final" && replyText.length > 0) {
+            const replyEnvelope = {
+              context,
+              action: "reply",
+              payload: {
+                userId,
+                text: replyText,
+                done: true
+              }
+            };
+            sendHiLightEnvelope({ ws, envelope: replyEnvelope, log, tag: "buffered-reply" });
+            log?.info(`hi-light: reply sent to user=${userId} context=${context} (len=${replyText.length})`);
+          }
+        },
+        onReplyStart: async () => {
+          const typingEnvelope = {
+            context,
+            action: "typing",
+            payload: { userId }
+          };
+          sendHiLightEnvelope({ ws, envelope: typingEnvelope, log, tag: "typing" });
+        }
+      }
     });
   } catch (err) {
     log?.error(`hi-light: dispatch error: ${err}`);
@@ -298,13 +237,10 @@ async function handleHiLightMessage(params) {
       }
     };
     sendHiLightEnvelope({ ws, envelope: errorEnvelope, log, tag: "dispatch-error" });
-  } finally {
-    markDispatchIdle?.();
   }
 }
 var init_bot = __esm({
   "src/bot.ts"() {
-    init_reply_dispatcher();
     init_runtime();
     init_ws_send();
   }
@@ -476,14 +412,14 @@ async function startHiLightMonitor(params) {
         return;
       }
       const raw = data.toString();
-      log?.debug?.(`hi-light: received raw msg len=${raw.length} raw=${raw}`);
+      log?.info(`hi-light: received msg len=${raw.length} raw=${raw}`);
       try {
         const envelope = JSON.parse(raw);
         if (envelope.action === "pong") {
           missedPongs = 0;
           connectionValidated = true;
           reconnectAttempts = 0;
-          log?.debug?.("hi-light: pong received, connection healthy");
+          log?.info("hi-light: pong received, connection healthy");
           return;
         }
       } catch {

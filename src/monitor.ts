@@ -217,7 +217,7 @@ export async function startHiLightMonitor(params: HiLightMonitorParams): Promise
         return;
       }
       const raw = data.toString();
-      log?.debug?.(`hi-light: received raw msg len=${raw.length} raw=${raw}`);
+      log?.info(`hi-light: received msg len=${raw.length} raw=${raw}`);
 
       // Handle pong directly — reset missed counter
       try {
@@ -226,7 +226,7 @@ export async function startHiLightMonitor(params: HiLightMonitorParams): Promise
           missedPongs = 0;
           connectionValidated = true;
           reconnectAttempts = 0;
-          log?.debug?.("hi-light: pong received, connection healthy");
+          log?.info("hi-light: pong received, connection healthy");
           return;
         }
       } catch {

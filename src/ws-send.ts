@@ -17,7 +17,7 @@ export function sendHiLightEnvelope<T>(params: SendHiLightEnvelopeParams<T>): bo
   const { ws, envelope, log, tag } = params;
   const label = tag ? `${tag}` : envelope.action;
   const raw = JSON.stringify(envelope);
-  log?.debug?.(`hi-light: ws send start action=${envelope.action} tag=${label} payload=${raw}`);
+  log?.info(`hi-light: ws send action=${envelope.action} tag=${label} payload=${raw}`);
 
   if (typeof ws.readyState === "number" && ws.readyState !== WebSocket.OPEN) {
     log?.warn(
@@ -34,7 +34,7 @@ export function sendHiLightEnvelope<T>(params: SendHiLightEnvelopeParams<T>): bo
         );
         return;
       }
-      log?.debug?.(`hi-light: ws send success action=${envelope.action} tag=${label}`);
+      log?.info(`hi-light: ws send ok action=${envelope.action} tag=${label}`);
     });
     return true;
   } catch (err) {
