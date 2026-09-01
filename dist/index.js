@@ -185,7 +185,7 @@ async function handleHiLightMessage(params) {
       ctx: ctxPayload,
       cfg: config,
       dispatcherOptions: {
-        humanDelay: core.channel.reply.resolveHumanDelayConfig(config),
+        humanDelay: core.channel.reply.resolveHumanDelayConfig(config, route.agentId),
         deliver: async (replyPayload, info) => {
           const replyText = replyPayload.text ?? "";
           const kind = info?.kind ?? "unknown";
@@ -498,11 +498,11 @@ var init_monitor = __esm({
 });
 
 // index.ts
-import { emptyPluginConfigSchema } from "openclaw/plugin-sdk";
+import { emptyPluginConfigSchema } from "openclaw/plugin-sdk/plugin-entry";
 
 // src/channel.ts
 init_accounts();
-import { DEFAULT_ACCOUNT_ID as DEFAULT_ACCOUNT_ID2 } from "openclaw/plugin-sdk";
+import { DEFAULT_ACCOUNT_ID as DEFAULT_ACCOUNT_ID2 } from "openclaw/plugin-sdk/account-id";
 var meta = {
   id: "hi-light",
   label: "HiLight",
@@ -531,6 +531,10 @@ var hiLightPlugin = {
         maxReconnectIntervalMs: { type: "integer", minimum: 1e3 },
         dmPolicy: { type: "string", enum: ["open", "pairing", "allowlist"] },
         allowFrom: {
+          type: "array",
+          items: { oneOf: [{ type: "string" }, { type: "number" }] }
+        },
+        groupAllowFrom: {
           type: "array",
           items: { oneOf: [{ type: "string" }, { type: "number" }] }
         }

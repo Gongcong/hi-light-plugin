@@ -1,4 +1,5 @@
-import type { OpenClawConfig, ChannelLogSink } from "openclaw/plugin-sdk";
+import type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";
+import type { ChannelLogSink } from "openclaw/plugin-sdk/channel-contract";
 import { randomUUID } from "node:crypto";
 import WebSocket from "ws";
 import type { PingPayload, ConnectedPayload } from "./types.js";

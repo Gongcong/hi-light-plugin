@@ -1,6 +1,6 @@
 {
   "name": "@art_style666/hi-light",
-  "version": "2.0.4",
+  "version": "2.1.0",
   "description": "HiLight WebSocket bridge channel plugin for OpenClaw",
   "type": "module",
   "main": "dist/index.js",
@@ -25,10 +25,26 @@
     "esbuild": "^0.25.0",
     "vitest": "^4.0.18"
   },
+  "peerDependencies": {
+    "openclaw": ">=2026.8.1"
+  },
+  "peerDependenciesMeta": {
+    "openclaw": {
+      "optional": true
+    }
+  },
   "openclaw": {
     "extensions": [
       "dist/index.js"
     ],
+    "compat": {
+      "pluginApi": ">=2026.8.1",
+      "minGatewayVersion": "2026.8.1"
+    },
+    "build": {
+      "openclawVersion": "2026.8.1",
+      "pluginSdkVersion": "2026.8.1"
+    },
     "channel": {
       "id": "hi-light",
       "label": "HiLight",

@@ -1,4 +1,5 @@
-import type { OpenClawConfig, ChannelLogSink } from "openclaw/plugin-sdk";
+import type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";
+import type { ChannelLogSink } from "openclaw/plugin-sdk/channel-contract";
 import type WebSocket from "ws";
 import type { HiLightEnvelope, MsgPayload, ReplyPayload as HiLightReplyPayload } from "./types.js";
 import { getHiLightRuntime } from "./runtime.js";
@@ -106,7 +107,7 @@ export async function handleHiLightMessage(params: HandleHiLightMessageParams): 
       ctx: ctxPayload,
       cfg: config,
       dispatcherOptions: {
-        humanDelay: core.channel.reply.resolveHumanDelayConfig(config),
+        humanDelay: core.channel.reply.resolveHumanDelayConfig(config, route.agentId),
 
         deliver: async (replyPayload, info) => {
           const replyText = replyPayload.text ?? "";

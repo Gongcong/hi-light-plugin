@@ -1,5 +1,5 @@
-import type { ChannelOutboundContext } from "openclaw/plugin-sdk";
-import type { OutboundDeliveryResult } from "openclaw/plugin-sdk";
+import type { ChannelOutboundContext } from "openclaw/plugin-sdk/channel-contract";
+import type { OutboundDeliveryResult } from "openclaw/plugin-sdk/channel-send-result";
 
 /**
  * Send a text message via the HiLight outbound adapter.

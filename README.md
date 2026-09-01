@@ -18,13 +18,29 @@ node -v
 openclaw --version
 ```
 
+## 版本兼容
+
+| 插件版本 | 兼容的 OpenClaw 版本 |
+| --- | --- |
+| 2.1.0 及以上 | OpenClaw ≥ 2026.8.1 |
+| 2.0.x | 2026.8.1 之前的旧版 OpenClaw |
+
+OpenClaw 2026.8.1 起删除了旧的 SDK 总入口（`openclaw/plugin-sdk`），2.0.x 插件在新版上无法加载。
+通过 npm 安装时，OpenClaw 会根据自身版本自动挑选兼容的插件版本，一般不需要手动指定。
+
 ## 安装方式
 
 ### 1. npm 安装（推荐）
 
 ```bash
-npm i @art_style666/hi-light
 openclaw plugins install @art_style666/hi-light
+```
+
+如果安装时提示 `requires capability consent`（OpenClaw ≥ 2026.8.1 的能力授权机制），
+追加 `--accept-capabilities` 后重试：
+
+```bash
+openclaw plugins install @art_style666/hi-light --accept-capabilities
 ```
 
 ### 2. ClawHub Skill 安装（适合想一步配置的用户）
@@ -74,7 +90,6 @@ openclaw plugins install --link /绝对路径/hi-light-plugin
     "enabled": true,
     "wsUrl": "wss://open.guangfan.com/open-apis/device-agent/v1/websocket",
     "authToken": "你的API KEY",
-    // 2.22 版本 需要加上下面的配置
     "dmPolicy": "open",
     "allowFrom": [
         "*"
@@ -82,6 +97,8 @@ openclaw plugins install --link /绝对路径/hi-light-plugin
   }
 }
 ```
+
+`dmPolicy` 和 `allowFrom` 必须按上面填写，否则私聊消息会被拦截。
 
 API KEY 获取方式：
 各大应用商店下载 HiLight App，点击设置 -> 帐号管理 -> 获取 API KEY。

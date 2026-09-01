@@ -1,4 +1,4 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk";
+import type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";
 import type { ResolvedHiLightAccount, HiLightConfig } from "./types.js";
 
 const DEFAULT_ACCOUNT_ID = "default";

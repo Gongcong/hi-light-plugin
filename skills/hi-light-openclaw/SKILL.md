@@ -26,6 +26,8 @@ description: 以用户可执行的工作流方式安装、配置和排查 HiLigh
 5. 如果用户先想看会改什么，先用 `--dry-run`。
 6. 脚本完成后，说明哪些配置已写入，以及 gateway restart 是否成功。
 
+OpenClaw ≥ 2026.8.1 安装插件需要能力授权（capability consent），脚本会在检测到支持时自动附加 `--accept-capabilities`，无需额外处理。插件 2.1.0 起要求 OpenClaw ≥ 2026.8.1；旧版 OpenClaw 请安装 2.0.x。
+
 ### 操作规则
 
 优先使用默认 WebSocket 地址，只有用户明确覆盖时才改。
@@ -64,6 +66,8 @@ Treat the API key as secret input. Never repeat the real token in your response.
 4. Add `--skip-install` when the user only wants to rotate credentials or refresh the existing configuration.
 5. Use `--dry-run` first if the user asks what will change before applying it.
 6. After the script finishes, summarize what changed and whether the gateway restart succeeded.
+
+OpenClaw ≥ 2026.8.1 requires capability consent when installing plugins; the script appends `--accept-capabilities` automatically when supported. Plugin 2.1.0+ requires OpenClaw ≥ 2026.8.1; on older OpenClaw installs use plugin 2.0.x.
 
 ### Rules
 

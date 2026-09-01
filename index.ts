@@ -1,5 +1,5 @@
-import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
-import { emptyPluginConfigSchema } from "openclaw/plugin-sdk";
+import type { OpenClawPluginApi } from "openclaw/plugin-sdk/plugin-entry";
+import { emptyPluginConfigSchema } from "openclaw/plugin-sdk/plugin-entry";
 import { hiLightPlugin } from "./src/channel.js";
 import { setHiLightRuntime } from "./src/runtime.js";
 

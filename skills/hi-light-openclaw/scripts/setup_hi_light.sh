@@ -110,7 +110,13 @@ main() {
 
   if [[ "$INSTALL_PLUGIN" -eq 1 ]]; then
     echo "[INFO] Installing plugin ${PLUGIN_SPEC}"
-    run_cmd openclaw plugins install "$PLUGIN_SPEC"
+    # OpenClaw >= 2026.8.1 gates plugin installs behind capability consent;
+    # older versions do not know this flag, so only pass it when supported.
+    install_flags=()
+    if openclaw plugins install --help 2>/dev/null | grep -q -- '--accept-capabilities'; then
+      install_flags+=(--accept-capabilities)
+    fi
+    run_cmd openclaw plugins install ${install_flags[@]+"${install_flags[@]}"} "$PLUGIN_SPEC"
   else
     echo "[INFO] Skipping plugin install"
   fi

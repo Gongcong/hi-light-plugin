@@ -1,4 +1,4 @@
-import type { ChannelLogSink } from "openclaw/plugin-sdk";
+import type { ChannelLogSink } from "openclaw/plugin-sdk/channel-contract";
 import WebSocket from "ws";
 import type { HiLightEnvelope } from "./types.js";
 

@@ -21,6 +21,7 @@ export type HiLightConfig = {
   maxReconnectIntervalMs?: number;
   dmPolicy?: "open" | "pairing" | "allowlist";
   allowFrom?: (string | number)[];
+  groupAllowFrom?: (string | number)[];
 };
 
 /** Resolved account for the hi-light channel */

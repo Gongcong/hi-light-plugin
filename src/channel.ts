@@ -1,5 +1,6 @@
-import type { ChannelMeta, ChannelPlugin } from "openclaw/plugin-sdk";
-import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk";
+import type { ChannelMeta } from "openclaw/plugin-sdk/channel-contract";
+import type { ChannelPlugin } from "openclaw/plugin-sdk/channel-core";
+import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/account-id";
 import type { ResolvedHiLightAccount, HiLightConfig } from "./types.js";
 import {
   resolveHiLightAccount,
@@ -39,6 +40,10 @@ export const hiLightPlugin: ChannelPlugin<ResolvedHiLightAccount> = {
         maxReconnectIntervalMs: { type: "integer", minimum: 1000 },
         dmPolicy: { type: "string", enum: ["open", "pairing", "allowlist"] },
         allowFrom: {
+          type: "array",
+          items: { oneOf: [{ type: "string" }, { type: "number" }] },
+        },
+        groupAllowFrom: {
           type: "array",
           items: { oneOf: [{ type: "string" }, { type: "number" }] },
         },

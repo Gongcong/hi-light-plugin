@@ -52,6 +52,8 @@ setup 脚本会通过 OpenClaw 官方命令更新这些配置：
 
 除非使用 `--no-restart`，否则脚本还会校验配置并重启 gateway。
 
+在 OpenClaw ≥ 2026.8.1 上，安装插件需要能力授权；脚本检测到支持时会自动附加 `--accept-capabilities`。插件 2.1.0 起要求 OpenClaw ≥ 2026.8.1，旧版 OpenClaw 请安装 2.0.x。
+
 # English
 
 ## First-time setup
@@ -105,3 +107,5 @@ The setup script uses OpenClaw's own config commands to update:
 - `channels["hi-light"].allowFrom`
 
 It then validates config and restarts the gateway unless `--no-restart` is used.
+
+On OpenClaw ≥ 2026.8.1, plugin installs require capability consent; the script appends `--accept-capabilities` automatically when supported. Plugin 2.1.0+ requires OpenClaw ≥ 2026.8.1; use plugin 2.0.x on older OpenClaw versions.
